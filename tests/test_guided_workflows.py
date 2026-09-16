@@ -1,6 +1,6 @@
 import json
 
-from repo_agent_chat.guided_workflows import (
+from repo_agent_chat.workflows.formatters import (
     format_mermaid_diagram,
     format_security_analysis,
 )

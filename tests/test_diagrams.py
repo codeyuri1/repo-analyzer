@@ -1,5 +1,5 @@
-from repo_agent_chat.diagrams import generate_dependency_diagram
 from repo_agent_chat.repository import SourceFile
+from repo_agent_chat.tools.diagrams import generate_dependency_diagram
 
 
 def test_generate_dependency_diagram_liga_imports_python() -> None:

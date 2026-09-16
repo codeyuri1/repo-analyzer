@@ -1,6 +1,6 @@
 import pytest
 
-from repo_agent_chat.intents import UserIntent, classify_intent
+from repo_agent_chat.agent.intents import UserIntent, classify_intent
 
 
 @pytest.mark.parametrize(
@@ -20,11 +20,21 @@ def test_pergunta_especifica_permanece_no_fluxo_geral() -> None:
     assert classify_intent("Como funciona o chunk_source_file?") is UserIntent.GENERAL
 
 
-def test_classifica_workflows_especializados() -> None:
-    assert (
-        classify_intent("Analise possíveis vulnerabilidades em src/")
-        is UserIntent.SECURITY_ANALYSIS
-    )
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Analise possíveis vulnerabilidades em src/",
+        "Faça uma análise de segurança do projeto",
+        "Verifique a segurança deste repositório",
+        "Faça uma auditoria de segurança",
+        "Procure falhas de segurança no código",
+    ],
+)
+def test_classifica_analise_de_seguranca(question: str) -> None:
+    assert classify_intent(question) is UserIntent.SECURITY_ANALYSIS
+
+
+def test_classifica_diagrama() -> None:
     assert (
         classify_intent("Gere um diagrama Mermaid das dependências")
         is UserIntent.MERMAID_DIAGRAM

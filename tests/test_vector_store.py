@@ -1,8 +1,11 @@
 import pytest
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.embeddings import EmbeddedChunk
-from repo_agent_chat.vector_store import InMemoryVectorStore, cosine_similarity
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.embeddings import EmbeddedChunk
+from repo_agent_chat.retrieval.vector_store import (
+    InMemoryVectorStore,
+    cosine_similarity,
+)
 
 
 def embedded(path: str, vector: tuple[float, ...]) -> EmbeddedChunk:

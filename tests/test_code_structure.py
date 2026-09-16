@@ -1,4 +1,4 @@
-from repo_agent_chat.code_structure import (
+from repo_agent_chat.repository.structure import (
     extract_code_structures,
     extract_python_structures,
 )

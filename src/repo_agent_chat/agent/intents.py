@@ -1,4 +1,5 @@
 from enum import StrEnum
+from unicodedata import combining, normalize
 
 
 class UserIntent(StrEnum):
@@ -24,16 +25,37 @@ OVERVIEW_PHRASES = (
     "fluxo principal da aplicacao",
 )
 
+SECURITY_PHRASES = (
+    "analise de seguranca",
+    "analisar a seguranca",
+    "analise a seguranca",
+    "auditoria de seguranca",
+    "audite a seguranca",
+    "falhas de seguranca",
+    "problemas de seguranca",
+    "riscos de seguranca",
+    "verifique a seguranca",
+    "verificar a seguranca",
+)
+
+
+def _normalize_question(question: str) -> str:
+    folded = normalize("NFKD", question.casefold())
+    without_accents = "".join(character for character in folded if not combining(character))
+    return " ".join(without_accents.split())
+
 
 def classify_intent(question: str) -> UserIntent:
     """Classifica somente intenções amplas com alta confiança."""
 
-    normalized = " ".join(question.casefold().split())
+    normalized = _normalize_question(question)
     if "mermaid" in normalized or (
         "diagrama" in normalized and "depend" in normalized
     ):
         return UserIntent.MERMAID_DIAGRAM
-    if "vulnerabil" in normalized or "análise de segurança" in normalized:
+    if "vulnerabil" in normalized or any(
+        phrase in normalized for phrase in SECURITY_PHRASES
+    ):
         return UserIntent.SECURITY_ANALYSIS
     if any(phrase in normalized for phrase in OVERVIEW_PHRASES):
         return UserIntent.PROJECT_OVERVIEW

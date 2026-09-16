@@ -2,16 +2,16 @@ from unittest.mock import Mock
 
 import pytest
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.embeddings import EmbeddedChunk
-from repo_agent_chat.retriever import (
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.embeddings import EmbeddedChunk
+from repo_agent_chat.retrieval.retriever import (
     RepositoryRetriever,
     lexical_candidates,
     rerank_exact_symbols,
     rerank_hybrid,
     tokenize_code,
 )
-from repo_agent_chat.vector_store import InMemoryVectorStore, SearchResult
+from repo_agent_chat.retrieval.vector_store import InMemoryVectorStore, SearchResult
 
 
 def test_search_converte_pergunta_e_consulta_indice() -> None:

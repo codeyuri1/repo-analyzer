@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from repo_agent_chat.embeddings import EmbeddedChunk
-from repo_agent_chat.indexing import EmptyRepositoryError, index_repository
+from repo_agent_chat.retrieval.embeddings import EmbeddedChunk
+from repo_agent_chat.retrieval.indexing import EmptyRepositoryError, index_repository
 
 
 def test_index_repository_orquestra_pipeline(tmp_path: Path) -> None:

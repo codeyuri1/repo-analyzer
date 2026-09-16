@@ -1,4 +1,7 @@
-from repo_agent_chat.faithfulness import extract_referenced_symbols, symbol_exists
+from repo_agent_chat.evaluation.faithfulness import (
+    extract_referenced_symbols,
+    symbol_exists,
+)
 
 
 def test_extract_referenced_symbols_de_chamada_composta() -> None:

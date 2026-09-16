@@ -1,8 +1,8 @@
 import re
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.embeddings import OllamaEmbeddings
-from repo_agent_chat.vector_store import InMemoryVectorStore, SearchResult
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.embeddings import OllamaEmbeddings
+from repo_agent_chat.retrieval.vector_store import InMemoryVectorStore, SearchResult
 
 WORD_PATTERN = re.compile(r"[A-Za-zÀ-ÿ_][\w]*")
 CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")

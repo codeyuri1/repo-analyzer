@@ -2,7 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from repo_agent_chat.main import main, run_chat
+from repo_agent_chat.app.main import main, run_chat
 
 
 def test_run_chat_responde_em_streaming(capsys) -> None:
@@ -49,10 +49,10 @@ def test_main_indexa_repositorio_e_inicia_chat(
 
     with (
         patch(
-            "repo_agent_chat.main.build_tool_agent",
+            "repo_agent_chat.app.main.build_tool_agent",
             return_value=(assistant, repository_index),
         ) as build,
-        patch("repo_agent_chat.main.run_chat") as chat_runner,
+        patch("repo_agent_chat.app.main.run_chat") as chat_runner,
     ):
         exit_code = main()
 
@@ -70,7 +70,7 @@ def test_main_retorna_erro_quando_indexacao_falha(
     monkeypatch.setattr("sys.argv", ["repo-agent-chat", str(tmp_path)])
 
     with patch(
-        "repo_agent_chat.main.build_tool_agent",
+        "repo_agent_chat.app.main.build_tool_agent",
         side_effect=ValueError("raiz inválida"),
     ):
         exit_code = main()

@@ -3,8 +3,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from repo_agent_chat.config import Settings
-from repo_agent_chat.llm import OllamaChat
+from repo_agent_chat.agent.llm import OllamaChat
+from repo_agent_chat.app.config import Settings
 
 
 def make_stream(*parts: str) -> list[SimpleNamespace]:

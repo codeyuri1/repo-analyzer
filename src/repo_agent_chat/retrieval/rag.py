@@ -1,8 +1,8 @@
 from collections.abc import Iterator
 
-from repo_agent_chat.llm import OllamaChat
-from repo_agent_chat.retriever import RepositoryRetriever
-from repo_agent_chat.vector_store import SearchResult
+from repo_agent_chat.agent.llm import OllamaChat
+from repo_agent_chat.retrieval.retriever import RepositoryRetriever
+from repo_agent_chat.retrieval.vector_store import SearchResult
 
 
 def format_retrieved_context(results: list[SearchResult]) -> str:

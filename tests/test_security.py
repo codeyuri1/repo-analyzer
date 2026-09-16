@@ -1,5 +1,5 @@
 from repo_agent_chat.repository import SourceFile
-from repo_agent_chat.security import analyze_source_files
+from repo_agent_chat.tools.security import analyze_source_files
 
 
 def test_analyze_source_files_detecta_sem_expor_segredo() -> None:

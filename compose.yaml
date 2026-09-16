@@ -1,0 +1,29 @@
+services:
+  repo-agent-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: repo-agent-chat:local
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OLLAMA_BASE_URL: ${CONTAINER_OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    ports:
+      - "${APP_PORT:-7860}:7860"
+    volumes:
+      - type: bind
+        source: ${REPOSITORY_PATH:-.}
+        target: /workspace/repository
+        read_only: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

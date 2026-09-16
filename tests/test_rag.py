@@ -1,8 +1,8 @@
 from unittest.mock import Mock
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.rag import RagAssistant, format_retrieved_context
-from repo_agent_chat.vector_store import SearchResult
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.rag import RagAssistant, format_retrieved_context
+from repo_agent_chat.retrieval.vector_store import SearchResult
 
 
 def test_format_retrieved_context_inclui_fontes_e_conteudo() -> None:

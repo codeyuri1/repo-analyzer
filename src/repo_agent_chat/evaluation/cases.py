@@ -3,7 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_agent_chat.agent import ToolAgent
-from repo_agent_chat.faithfulness import extract_referenced_symbols, symbol_exists
+from repo_agent_chat.evaluation.faithfulness import (
+    extract_referenced_symbols,
+    symbol_exists,
+)
 
 CITATION_PATTERN = re.compile(
     r"(?P<path>[\w./-]+\.[a-zA-Z0-9]+):(?P<start>\d+)(?:-(?P<end>\d+))?"
@@ -60,9 +63,9 @@ REPOSITORY_SAFETY_CASE = EvalCase(
         "de arquivos."
     ),
     required_terms=(
-        "agent.py",
-        "repository.py",
-        "tools.py",
+        "agent/orchestrator.py",
+        "repository/reader.py",
+        "tools/registry.py",
         "read_source_file",
     ),
     required_concepts=(
@@ -103,7 +106,7 @@ CHUNKING_CASE = EvalCase(
         ),
     ),
     required_tool_groups=(("evidence", ("read_file", "semantic_search")),),
-    required_evidence_paths=("src/repo_agent_chat/chunking.py",),
+    required_evidence_paths=("src/repo_agent_chat/retrieval/chunking.py",),
     minimum_citations=2,
     maximum_citations=5,
     maximum_citation_span=20,
@@ -128,9 +131,9 @@ VECTOR_SEARCH_CASE = EvalCase(
     ),
     required_tool_groups=(("evidence", ("read_file", "semantic_search")),),
     required_evidence_paths=(
-        "src/repo_agent_chat/embeddings.py",
-        "src/repo_agent_chat/retriever.py",
-        "src/repo_agent_chat/vector_store.py",
+        "src/repo_agent_chat/retrieval/embeddings.py",
+        "src/repo_agent_chat/retrieval/retriever.py",
+        "src/repo_agent_chat/retrieval/vector_store.py",
     ),
     minimum_citations=2,
     maximum_citations=5,
@@ -153,7 +156,7 @@ RAG_FLOW_CASE = EvalCase(
         ("streaming", ("yield from", "stream")),
     ),
     required_tool_groups=(("evidence", ("read_file", "semantic_search")),),
-    required_evidence_paths=("src/repo_agent_chat/rag.py",),
+    required_evidence_paths=("src/repo_agent_chat/retrieval/rag.py",),
     forbidden_terms=("semantic_search", "read_file"),
     minimum_citations=2,
     maximum_citations=5,
@@ -199,7 +202,7 @@ DEFAULT_EVAL_CASES = (
 )
 EVAL_EXCLUDED_PATHS = frozenset(
     {
-        "src/repo_agent_chat/evals.py",
+        "src/repo_agent_chat/evaluation/cases.py",
         "tests/test_evals.py",
     }
 )

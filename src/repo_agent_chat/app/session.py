@@ -8,6 +8,8 @@ from types import TracebackType
 from typing import Self
 from urllib.parse import urlparse
 
+from repo_agent_chat.repository import IGNORED_DIRECTORIES
+
 MAX_REPOSITORY_FILES = 20_000
 MAX_REPOSITORY_BYTES = 200 * 1024 * 1024
 GITHUB_PATH = re.compile(r"^/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+?)(?:\.git)?/?$")
@@ -101,7 +103,11 @@ class RepositorySession:
         total_bytes = 0
         for path in self.repository_root.rglob("*"):
             relative = path.relative_to(self.repository_root)
-            if ".git" in relative.parts or path.is_symlink() or not path.is_file():
+            if (
+                any(part in IGNORED_DIRECTORIES for part in relative.parts)
+                or path.is_symlink()
+                or not path.is_file()
+            ):
                 continue
             file_count += 1
             total_bytes += path.stat().st_size

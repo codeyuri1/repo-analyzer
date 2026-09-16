@@ -20,14 +20,30 @@ ollama pull qwen3-embedding:0.6b
 Configure o `.env`:
 
 ```dotenv
+AI_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=qwen2.5-coder:7b
 OLLAMA_EMBEDDING_MODEL=qwen3-embedding:0.6b
+OLLAMA_TIMEOUT_SECONDS=300
 ```
 
 A chave da OpenAI não é necessária. A biblioteca usa a API compatível do
 Ollama em `localhost`; internamente é enviado apenas um valor fictício exigido
 pelo cliente.
+
+Para usar a API da OpenAI, altere somente a configuração:
+
+```dotenv
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_BASE_URL=https://api.openai.com/v1
+OLLAMA_TIMEOUT_SECONDS=300
+```
+
+Os modelos podem ser trocados pelas variáveis de ambiente sem modificar o código.
+Não versione o arquivo `.env` nem exponha a chave na interface ou em demonstrações.
 
 ## Executar
 
@@ -60,6 +76,33 @@ repositório**. Somente nesse momento o clone temporário e a indexação em mem
 são iniciados. Carregar outra fonte limpa a conversa e descarta a sessão
 anterior depois que a nova indexação termina com sucesso.
 
+## Docker
+
+O container executa somente a aplicação. O Ollama continua no host e é acessado
+por `host.docker.internal`; modelos e drivers de GPU não são incluídos na imagem.
+
+Para analisar o próprio projeto:
+
+```bash
+docker compose up --build
+```
+
+Para montar outro repositório local, sempre como somente leitura:
+
+```bash
+REPOSITORY_PATH=/caminho/do/repositorio docker compose up --build
+```
+
+A interface fica disponível em `http://127.0.0.1:7860`. Para trocar a porta:
+
+```bash
+APP_PORT=8080 docker compose up --build
+```
+
+Com OpenAI, configure `AI_PROVIDER=openai` e `OPENAI_API_KEY` no `.env`. O
+container roda sem root, com filesystem somente leitura, capabilities removidas
+e `/tmp` efêmero para clones, índice da sessão e diagramas.
+
 ## Tools disponíveis
 
 - `list_files`: navega pelos arquivos indexáveis.
@@ -85,6 +128,10 @@ Exemplos de perguntas:
 - `Analise possíveis vulnerabilidades no código-fonte.`
 - `Gere um diagrama Mermaid das dependências entre os módulos.`
 
+O chat não usa uma lista fechada de perguntas. Os exemplos da interface funcionam
+como atalhos para a demonstração, enquanto o agente aceita qualquer pergunta dentro
+do domínio do repositório. Perguntas fora desse escopo são redirecionadas.
+
 ## Qualidade
 
 ```bash
@@ -95,6 +142,9 @@ uv run repo-agent-chat --eval .
 
 Os testes verificam componentes determinísticos. Os evals executam conversas
 reais com a LLM e avaliam uso de tools, groundedness, citações e formato.
+
+Uma descrição das responsabilidades, dependências e do fluxo interno está em
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Checklist de demonstração
 

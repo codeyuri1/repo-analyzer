@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from math import sqrt
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.embeddings import EmbeddedChunk
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.embeddings import EmbeddedChunk
 
 
 @dataclass(frozen=True, slots=True)

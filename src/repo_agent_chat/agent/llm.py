@@ -3,7 +3,7 @@ from typing import Literal, TypedDict
 
 from openai import OpenAI
 
-from repo_agent_chat.config import Settings
+from repo_agent_chat.app.config import Settings
 
 
 class Message(TypedDict):
@@ -21,12 +21,12 @@ class OllamaChat:
         settings: Settings,
         client: OpenAI | None = None,
     ) -> None:
-        self._model = settings.ollama_model
+        self._model = settings.chat_model
         self._max_history_messages = settings.max_history_turns * 2
         self._client = client or OpenAI(
-            base_url=str(settings.ollama_base_url),
-            api_key="ollama",
-            timeout=120.0,
+            base_url=settings.api_base_url,
+            api_key=settings.api_key,
+            timeout=settings.ollama_timeout_seconds,
         )
         self._messages: list[Message] = [
             {

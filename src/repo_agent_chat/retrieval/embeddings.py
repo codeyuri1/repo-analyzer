@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 from openai import OpenAI
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.config import Settings
+from repo_agent_chat.app.config import Settings
+from repo_agent_chat.retrieval.chunking import CodeChunk
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,12 +22,12 @@ class OllamaEmbeddings:
         settings: Settings,
         client: OpenAI | None = None,
     ) -> None:
-        self._model = settings.ollama_embedding_model
+        self._model = settings.embedding_model
         self._batch_size = settings.embedding_batch_size
         self._client = client or OpenAI(
-            base_url=str(settings.ollama_base_url),
-            api_key="ollama",
-            timeout=120.0,
+            base_url=settings.api_base_url,
+            api_key=settings.api_key,
+            timeout=settings.ollama_timeout_seconds,
         )
 
     def embed_texts(self, texts: list[str]) -> list[tuple[float, ...]]:

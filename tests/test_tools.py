@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 from unittest.mock import Mock
 
-from repo_agent_chat.chunking import CodeChunk
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.vector_store import SearchResult
 from repo_agent_chat.tools import TOOL_DEFINITIONS, RepositoryTools
-from repo_agent_chat.vector_store import SearchResult
 
 
 def decode(result: str):

@@ -1,9 +1,9 @@
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from repo_agent_chat.chunking import CodeChunk
-from repo_agent_chat.config import Settings
-from repo_agent_chat.embeddings import OllamaEmbeddings
+from repo_agent_chat.app.config import Settings
+from repo_agent_chat.retrieval.chunking import CodeChunk
+from repo_agent_chat.retrieval.embeddings import OllamaEmbeddings
 
 
 def test_embed_texts_preserva_ordem_dos_vetores() -> None:

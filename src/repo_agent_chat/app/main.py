@@ -6,19 +6,19 @@ from typing import Protocol
 from openai import OpenAIError
 
 from repo_agent_chat.agent import ToolAgent
-from repo_agent_chat.config import Settings, get_settings
-from repo_agent_chat.embeddings import OllamaEmbeddings
-from repo_agent_chat.evals import (
+from repo_agent_chat.app.config import Settings, get_settings
+from repo_agent_chat.app.session import RepositorySession, RepositorySourceError
+from repo_agent_chat.evaluation.cases import (
     EVAL_EXCLUDED_PATHS,
     print_evaluation_report,
     run_evaluation_suite,
 )
-from repo_agent_chat.indexing import (
+from repo_agent_chat.retrieval.embeddings import OllamaEmbeddings
+from repo_agent_chat.retrieval.indexing import (
     EmptyRepositoryError,
     RepositoryIndex,
     index_repository,
 )
-from repo_agent_chat.session import RepositorySession, RepositorySourceError
 from repo_agent_chat.tools import RepositoryTools
 from repo_agent_chat.tracing import print_tool_trace
 
@@ -111,18 +111,19 @@ def main() -> int:
     args = parse_args()
     settings = get_settings()
 
-    print(f"Modelo de chat: {settings.ollama_model}")
-    print(f"Modelo de embeddings: {settings.ollama_embedding_model}")
+    print(f"Provedor de IA: {settings.ai_provider}")
+    print(f"Modelo de chat: {settings.chat_model}")
+    print(f"Modelo de embeddings: {settings.embedding_model}")
 
     if args.web and not args.eval:
-        from repo_agent_chat.ui import create_repository_app
+        from repo_agent_chat.app.ui import APP_CSS, create_repository_app
 
         app, controller = create_repository_app(
             lambda repository_root: build_tool_agent(repository_root, settings),
             args.repository,
         )
         try:
-            app.launch(server_name=args.host, server_port=args.port)
+            app.launch(server_name=args.host, server_port=args.port, css=APP_CSS)
         except (KeyboardInterrupt, EOFError):
             print("\nInterface encerrada.")
         finally:

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from repo_agent_chat.session import (
+from repo_agent_chat.app.session import (
     RepositorySession,
     RepositorySourceError,
     validate_github_url,
@@ -25,6 +25,21 @@ def test_sessao_remove_workspace_sem_apagar_repositorio(tmp_path: Path) -> None:
 
     assert not workspace.exists()
     assert source.exists()
+
+
+def test_sessao_nao_contabiliza_diretorios_ignorados(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    virtual_environment = repository / ".venv"
+    virtual_environment.mkdir()
+    (virtual_environment / "large.bin").write_bytes(b"x" * 1_000_000)
+    monkeypatch.setattr("repo_agent_chat.app.session.MAX_REPOSITORY_BYTES", 10)
+
+    with RepositorySession(repository) as session:
+        assert session.repository_root == repository.resolve()
 
 
 @pytest.mark.parametrize(
@@ -60,7 +75,7 @@ def test_clona_github_no_workspace_e_remove_ao_sair(tmp_path: Path) -> None:
         (destination / "main.py").write_text("print('ok')", encoding="utf-8")
 
     with (
-        patch("repo_agent_chat.session.subprocess.run", side_effect=fake_clone) as run,
+        patch("repo_agent_chat.app.session.subprocess.run", side_effect=fake_clone) as run,
         RepositorySession("https://github.com/example/demo") as session,
     ):
         workspace = session.workspace

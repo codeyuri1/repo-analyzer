@@ -2,15 +2,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-from repo_agent_chat.diagrams import generate_dependency_diagram
 from repo_agent_chat.repository import (
     RepositoryFileError,
     SourceFile,
     discover_source_files,
     read_source_file,
 )
-from repo_agent_chat.retriever import RepositoryRetriever
-from repo_agent_chat.security import analyze_source_files
+from repo_agent_chat.retrieval.retriever import RepositoryRetriever
+from repo_agent_chat.tools.diagrams import generate_dependency_diagram
+from repo_agent_chat.tools.security import analyze_source_files
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {

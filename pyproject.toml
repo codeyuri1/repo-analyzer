@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-repo-agent-chat = "repo_agent_chat.main:main"
+repo-agent-chat = "repo_agent_chat.app.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.10,<0.13.0"]

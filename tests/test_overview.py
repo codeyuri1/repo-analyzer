@@ -1,4 +1,4 @@
-from repo_agent_chat.overview import build_project_overview
+from repo_agent_chat.workflows.overview import build_project_overview
 
 
 def test_constroi_visao_geral_fundamentada() -> None:

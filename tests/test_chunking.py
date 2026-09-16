@@ -1,7 +1,11 @@
 import pytest
 
-from repo_agent_chat.chunking import CodeChunk, chunk_repository, chunk_source_file
 from repo_agent_chat.repository import SourceFile
+from repo_agent_chat.retrieval.chunking import (
+    CodeChunk,
+    chunk_repository,
+    chunk_source_file,
+)
 
 
 def make_source(line_count: int) -> SourceFile:

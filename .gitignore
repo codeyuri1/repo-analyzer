@@ -1,29 +1,49 @@
-# Ambiente virtual
+# Ambientes virtuais (uv e Python)
 .venv/
+venv/
+env/
 
 # Segredos e configurações locais
 .env
+.env.*
+!.env.example
 
-# Cache do Python
+# Bytecode e caches do Python
 __pycache__/
 *.py[cod]
+*$py.class
 
 # Ferramentas de teste e qualidade
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.pyright/
+.tox/
+.nox/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 
 # Dados gerados pela aplicação
 data/repos/
 .repo-agent-chat/
+artifacts/
+*.mmd
 *.log
 
 # Build e distribuição
 build/
 dist/
 *.egg-info/
+*.egg
 
-# Editor
+# Editores e sistema operacional
 .vscode/
 .idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# O uv.lock deve ser versionado para builds reproduzíveis.

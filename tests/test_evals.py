@@ -1,7 +1,11 @@
 from pathlib import Path
 from unittest.mock import Mock
 
-from repo_agent_chat.evals import EvalCase, evaluate_answer, run_evaluation_suite
+from repo_agent_chat.evaluation.cases import (
+    EvalCase,
+    evaluate_answer,
+    run_evaluation_suite,
+)
 
 
 def test_evaluate_answer_aprova_todos_os_criterios(tmp_path: Path) -> None:

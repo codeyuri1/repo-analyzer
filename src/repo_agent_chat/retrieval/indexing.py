@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from repo_agent_chat.chunking import chunk_repository
-from repo_agent_chat.embeddings import OllamaEmbeddings
 from repo_agent_chat.repository import load_repository
-from repo_agent_chat.retriever import RepositoryRetriever
+from repo_agent_chat.retrieval.chunking import chunk_repository
+from repo_agent_chat.retrieval.embeddings import OllamaEmbeddings
+from repo_agent_chat.retrieval.retriever import RepositoryRetriever
 
 
 class EmptyRepositoryError(Exception):

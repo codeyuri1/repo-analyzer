@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from repo_agent_chat.agent import ToolAgent
-from repo_agent_chat.config import Settings
+from repo_agent_chat.app.config import Settings
 
 
 def final_response(content: str) -> SimpleNamespace:
@@ -98,6 +98,24 @@ def test_visao_geral_inicia_workflow_deterministico() -> None:
         "start_line": 1,
         "end_line": 160,
     }
+    client.chat.completions.create.assert_not_called()
+
+
+def test_pedido_natural_de_seguranca_executa_tool_deterministicamente() -> None:
+    client = Mock()
+    tools = Mock()
+    tools.execute.return_value = json.dumps(
+        {"ok": True, "result": {"findings": [], "count": 0, "prefix": ""}}
+    )
+    agent = ToolAgent(Settings(_env_file=None), tools, client=client)
+
+    answer = agent.ask("Verifique a segurança deste repositório")
+
+    assert "Nenhum possível achado" in answer
+    tools.execute.assert_called_once_with(
+        "analyze_vulnerabilities",
+        '{"prefix": "", "max_findings": 50}',
+    )
     client.chat.completions.create.assert_not_called()
 
 
@@ -427,6 +445,7 @@ def test_agent_busca_evidencia_antes_de_aceitar_resposta_sobre_repo() -> None:
     client = Mock()
     client.chat.completions.create.side_effect = [
         final_response("Acho que funciona assim."),
+        final_response("A busca encontrou a implementação."),
         final_response("Funciona em `main.py:1`."),
     ]
     tools = Mock()
@@ -448,8 +467,54 @@ def test_agent_busca_evidencia_antes_de_aceitar_resposta_sobre_repo() -> None:
     answer = agent.ask("Como funciona o código de autenticação?")
 
     assert answer == "Funciona em `main.py:1`."
-    tools.execute.assert_called_once()
-    assert tools.execute.call_args.args[0] == "semantic_search"
+    assert [call.args[0] for call in tools.execute.call_args_list] == [
+        "semantic_search",
+        "read_file",
+    ]
+
+
+def test_agent_nao_aceita_listagem_como_evidencia_de_comportamento() -> None:
+    client = Mock()
+    client.chat.completions.create.side_effect = [
+        tool_response("list_files", "{}"),
+        final_response("O nome do arquivo indica o comportamento."),
+        final_response("A busca encontrou a implementação."),
+        final_response("A implementação está em `repository.py:10`."),
+    ]
+    tools = Mock()
+    tools.execute.side_effect = [
+        json.dumps({"ok": True, "result": ["repository.py"]}),
+        json.dumps(
+            {
+                "ok": True,
+                "result": [
+                    {
+                        "path": "repository.py",
+                        "start_line": 1,
+                        "end_line": 20,
+                        "content": "10: def read_source_file(): pass",
+                    }
+                ],
+            }
+        ),
+        json.dumps(
+            {
+                "ok": True,
+                "result": {
+                    "path": "repository.py",
+                    "start_line": 1,
+                    "end_line": 20,
+                    "content": "10: def read_source_file(): pass",
+                },
+            }
+        ),
+    ]
+    agent = ToolAgent(Settings(_env_file=None), tools, client=client)
+
+    answer = agent.ask("Como o projeto lê arquivos?")
+
+    assert "repository.py:10" in answer
+    assert agent.last_tool_calls == ["list_files", "semantic_search", "read_file"]
 
 
 def test_agent_responde_sem_tool_quando_nao_for_necessaria() -> None:

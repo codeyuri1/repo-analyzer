@@ -3,14 +3,14 @@ from unittest.mock import Mock, call
 
 import gradio as gr
 
-from repo_agent_chat.tracing import ToolTraceEvent
-from repo_agent_chat.ui import (
+from repo_agent_chat.app.ui import (
     GradioChatAdapter,
     WebRepositoryController,
     create_app,
     create_repository_app,
     save_mermaid_artifact,
 )
+from repo_agent_chat.tracing import ToolTraceEvent
 
 
 def test_gradio_adapter_carrega_historico_antes_da_pergunta() -> None:
@@ -129,7 +129,8 @@ def test_controller_exige_repositorio_antes_do_chat() -> None:
 
     updates = list(controller.respond("Olá", []))
 
-    assert updates == [("Carregue um repositório antes de iniciar o chat.", None)]
+    assert updates[0][0] == "Carregue um repositório antes de iniciar o chat."
+    assert updates[0][1]["__type__"] == "update"
 
 
 def test_create_repository_app_constroi_tela_inicial(tmp_path) -> None:

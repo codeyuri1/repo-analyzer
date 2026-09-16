@@ -9,12 +9,19 @@ from uuid import uuid4
 import gradio as gr
 
 from repo_agent_chat.agent import ToolAgent
-from repo_agent_chat.indexing import RepositoryIndex
-from repo_agent_chat.session import RepositorySession
+from repo_agent_chat.app.session import RepositorySession
+from repo_agent_chat.retrieval.indexing import RepositoryIndex
 from repo_agent_chat.tracing import ToolTraceEvent
 
 type WorkerMessage = ToolTraceEvent | tuple[str, str]
 type AgentFactory = Callable[[Path], tuple[ToolAgent, RepositoryIndex]]
+
+APP_CSS = """
+.gradio-container { max-width: 1180px !important; margin: 0 auto !important; }
+.hero { padding: 0.5rem 0 0.25rem; }
+.hero h1 { margin-bottom: 0.25rem; }
+.repository-status { min-height: 2.5rem; }
+"""
 
 
 @dataclass(slots=True)
@@ -41,6 +48,11 @@ class WebRepositoryController:
         for final_status in self.load_updates(source):
             pass
         return final_status
+
+    @property
+    def has_runtime(self) -> bool:
+        with self._lock:
+            return self._runtime is not None
 
     def load_updates(self, source: str) -> Iterator[str]:
         """Expõe progresso e preserva a sessão anterior se a nova carga falhar."""
@@ -91,13 +103,13 @@ class WebRepositoryController:
         self,
         message: str,
         history: list[dict[str, object]],
-    ) -> Iterator[tuple[str, str | None]]:
+    ) -> Iterator[tuple[str, object]]:
         """Delega ao agente da sessão ativa ou orienta a carregar uma fonte."""
 
         with self._lock:
             runtime = self._runtime
             if runtime is None:
-                yield "Carregue um repositório antes de iniciar o chat.", None
+                yield "Carregue um repositório antes de iniciar o chat.", gr.skip()
                 return
             yield from runtime.adapter.respond_with_artifact(
                 message,
@@ -178,7 +190,7 @@ class GradioChatAdapter:
         message: str,
         history: list[dict[str, object]],
         artifact_directory: Path,
-    ) -> Iterator[tuple[str, str | None]]:
+    ) -> Iterator[tuple[str, object]]:
         """Transmite o chat e publica o Mermaid como arquivo para download."""
 
         artifact_path: Path | None = None
@@ -186,7 +198,12 @@ class GradioChatAdapter:
             diagram = self._agent.last_mermaid_diagram
             if artifact_path is None and diagram:
                 artifact_path = save_mermaid_artifact(artifact_directory, diagram)
-            yield update, str(artifact_path) if artifact_path else None
+            artifact_update = (
+                gr.update(value=str(artifact_path), visible=True, interactive=True)
+                if artifact_path
+                else gr.skip()
+            )
+            yield update, artifact_update
 
 
 def _format_tool_event(event: ToolTraceEvent) -> str:
@@ -226,7 +243,7 @@ def create_app(
     def respond(
         message: str,
         history: list[dict[str, object]],
-    ) -> Iterator[tuple[str, str | None]]:
+    ) -> Iterator[tuple[str, object]]:
         yield from adapter.respond_with_artifact(message, history, artifact_directory)
 
     with gr.Blocks(title="Repo Agent Chat") as app:
@@ -234,8 +251,14 @@ def create_app(
         download = gr.DownloadButton(
             "Baixar último diagrama Mermaid (.mmd)",
             value=None,
+            visible=False,
         )
-        chatbot = gr.Chatbot(render_markdown=True, allow_file_downloads=True)
+        chatbot = gr.Chatbot(
+            render_markdown=True,
+            allow_file_downloads=True,
+            height=520,
+            placeholder="Faça uma pergunta sobre o repositório carregado.",
+        )
         gr.ChatInterface(
             fn=respond,
             chatbot=chatbot,
@@ -261,19 +284,47 @@ def create_repository_app(
 
     def load_repository(
         source: str,
-    ) -> Iterator[tuple[object, object, object]]:
+    ) -> Iterator[tuple[object, object, object, object, object]]:
         for update in controller.load_updates(source):
             if update.startswith("✅"):
-                yield update, [], None
+                yield (
+                    update,
+                    [],
+                    gr.update(value=None, visible=False),
+                    gr.update(visible=True),
+                    gr.update(value="Carregar repositório", interactive=True),
+                )
+            elif update.startswith("❌"):
+                yield (
+                    update,
+                    gr.skip(),
+                    gr.skip(),
+                    gr.update(visible=controller.has_runtime),
+                    gr.update(value="Tentar novamente", interactive=True),
+                )
             else:
-                yield update, gr.skip(), gr.skip()
+                yield (
+                    update,
+                    gr.skip(),
+                    gr.skip(),
+                    gr.skip(),
+                    gr.update(value="Indexando...", interactive=False),
+                )
 
     with gr.Blocks(title="Repo Agent Chat") as app:
         gr.Markdown(
-            "# Repo Agent Chat\n\n"
-            "Informe um diretório local ou uma URL pública do GitHub. "
-            "O índice e os clones existem somente durante esta sessão."
+            "# 🔎 Repo Agent Chat\n\n"
+            "Analise arquitetura, fluxos e possíveis vulnerabilidades usando "
+            "evidências do próprio código.",
+            elem_classes="hero",
         )
+        with gr.Accordion("Como usar", open=True):
+            gr.Markdown(
+                "1. Informe um diretório local ou uma URL pública do GitHub.\n"
+                "2. Clique em **Carregar repositório** e aguarde a indexação.\n"
+                "3. Use uma pergunta sugerida ou escreva a sua.\n\n"
+                "O índice, clones e diagramas existem somente durante esta sessão."
+            )
         with gr.Row():
             source = gr.Textbox(
                 value=initial_source,
@@ -282,26 +333,44 @@ def create_repository_app(
                 scale=5,
             )
             load_button = gr.Button("Carregar repositório", variant="primary", scale=1)
-        status = gr.Markdown("Nenhum repositório carregado.")
-        download = gr.DownloadButton(
-            "Baixar último diagrama Mermaid (.mmd)",
-            value=None,
+        status = gr.Markdown(
+            "ℹ️ Nenhum repositório carregado.",
+            elem_classes="repository-status",
         )
-        chatbot = gr.Chatbot(render_markdown=True, allow_file_downloads=True)
-        gr.ChatInterface(
-            fn=controller.respond,
-            chatbot=chatbot,
-            additional_outputs=[download],
-            examples=[
-                "Explique o projeto.",
-                "Analise possíveis vulnerabilidades no código-fonte.",
-                "Gere um diagrama Mermaid das dependências entre os módulos.",
-            ],
-        )
+        with gr.Column(visible=False) as chat_area:
+            download = gr.DownloadButton(
+                "Baixar último diagrama Mermaid (.mmd)",
+                value=None,
+                visible=False,
+            )
+            chatbot = gr.Chatbot(
+                render_markdown=True,
+                allow_file_downloads=True,
+                height=520,
+                placeholder="Escolha uma sugestão ou pergunte sobre o código.",
+            )
+            gr.ChatInterface(
+                fn=controller.respond,
+                chatbot=chatbot,
+                additional_outputs=[download],
+                submit_btn="Enviar",
+                stop_btn="Parar",
+                examples=[
+                    "Explique o projeto.",
+                    "Explique o fluxo principal da aplicação.",
+                    "Verifique a segurança do código em src/.",
+                    "Gere um diagrama Mermaid das dependências entre os módulos.",
+                ],
+            )
+        load_outputs = [status, chatbot, download, chat_area, load_button]
         load_button.click(
             fn=load_repository,
             inputs=[source],
-            outputs=[status, chatbot, download],
+            outputs=load_outputs,
         )
-        app.unload(controller.close)
+        source.submit(
+            fn=load_repository,
+            inputs=[source],
+            outputs=load_outputs,
+        )
     return app, controller
