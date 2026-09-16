@@ -1,0 +1,29 @@
+# Ambiente virtual
+.venv/
+
+# Segredos e configurações locais
+.env
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+
+# Ferramentas de teste e qualidade
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Dados gerados pela aplicação
+data/repos/
+.repo-agent-chat/
+*.log
+
+# Build e distribuição
+build/
+dist/
+*.egg-info/
+
+# Editor
+.vscode/
+.idea/

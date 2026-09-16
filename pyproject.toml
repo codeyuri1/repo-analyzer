@@ -1,0 +1,24 @@
+[project]
+name = "repo-agent-chat"
+version = "0.1.0"
+description = "Chat local com RAG e tools para analisar repositórios de código"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gradio>=6,<7",
+    "openai>=3.13.0",
+    "pydantic-settings>=2.15.0",
+]
+
+[project.scripts]
+repo-agent-chat = "repo_agent_chat.main:main"
+
+[build-system]
+requires = ["uv_build>=0.12.10,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.7",
+]
