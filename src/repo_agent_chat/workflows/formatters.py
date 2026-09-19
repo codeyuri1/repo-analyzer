@@ -49,11 +49,34 @@ def format_mermaid_diagram(tool_result: str) -> str:
     nodes = result.get("nodes", 0)
     edges = result.get("edges", 0)
     truncated = result.get("truncated") is True
+    paths = result.get("paths", [])
+    edge_evidence = result.get("edge_evidence", [])
     note = " O grafo foi limitado ao máximo configurado de nós." if truncated else ""
+    sources = _format_node_sources(paths) + _format_edge_evidence(edge_evidence)
     return (
         f"Diagrama de dependências com {nodes} nós e {edges} arestas.{note}\n\n"
-        f"```mermaid\n{diagram}\n```"
+        f"```mermaid\n{diagram}\n```{sources}"
     )
+
+
+def _format_edge_evidence(edge_evidence: object) -> str:
+    if not isinstance(edge_evidence, list) or not edge_evidence:
+        return ""
+    references = []
+    for item in edge_evidence:
+        if not isinstance(item, dict):
+            continue
+        source, target, line = item.get("source"), item.get("target"), item.get("line")
+        if isinstance(source, str) and isinstance(target, str) and isinstance(line, int):
+            references.append(f"- `{source}` → `{target}`: `{source}:{line}`")
+    return "\n\nEvidências das relações:\n" + "\n".join(references) if references else ""
+
+
+def _format_node_sources(paths: object) -> str:
+    if not isinstance(paths, list) or not paths:
+        return ""
+    references = [f"`{path}:1`" for path in paths if isinstance(path, str)]
+    return "\n\nFontes dos nós: " + ", ".join(references) if references else ""
 
 
 def _result_object(tool_result: str) -> dict[str, object]:

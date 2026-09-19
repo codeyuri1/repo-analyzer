@@ -12,13 +12,17 @@ services:
     environment:
       OLLAMA_BASE_URL: ${CONTAINER_OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     ports:
-      - "${APP_PORT:-7860}:7860"
+      # Bind somente no host local por padrão. Defina APP_HOST=0.0.0.0 apenas
+      # quando a interface precisar ser acessada por outro dispositivo.
+      - "${APP_HOST:-127.0.0.1}:${APP_PORT:-7860}:7860"
     volumes:
       - type: bind
         source: ${REPOSITORY_PATH:-.}
         target: /workspace/repository
         read_only: true
     extra_hosts:
+      # Funciona tanto no Docker Desktop com WSL 2 quanto no Docker Engine
+      # instalado diretamente no Ubuntu/WSL.
       - "host.docker.internal:host-gateway"
     read_only: true
     tmpfs:

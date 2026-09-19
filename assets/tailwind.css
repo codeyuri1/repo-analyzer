@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@source "../src/repo_agent_chat/app/ui.py";
+@import "./ui.css";
+
+@theme {
+  --color-brand-50: #eff4f7;
+  --color-brand-100: #dce7ee;
+  --color-brand-500: #426b8b;
+  --color-brand-600: #315b7d;
+  --color-brand-700: #244762;
+  --color-brand-900: #263f54;
+}

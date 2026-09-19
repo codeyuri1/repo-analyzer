@@ -14,6 +14,9 @@ def test_generate_dependency_diagram_liga_imports_python() -> None:
     assert 'n0["src/app.py"]' in result["diagram"]
     assert "n0 --> n1" in result["diagram"]
     assert result["edges"] == 1
+    assert result["edge_evidence"] == [
+        {"source": "src/app.py", "target": "src/service.py", "line": 1}
+    ]
 
 
 def test_generate_dependency_diagram_limita_nos() -> None:

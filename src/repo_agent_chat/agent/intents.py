@@ -6,6 +6,7 @@ class UserIntent(StrEnum):
     """Intenções que precisam de workflows próprios e previsíveis."""
 
     GENERAL = "general"
+    CAPABILITIES = "capabilities"
     MERMAID_DIAGRAM = "mermaid_diagram"
     PROJECT_OVERVIEW = "project_overview"
     SECURITY_ANALYSIS = "security_analysis"
@@ -23,6 +24,18 @@ OVERVIEW_PHRASES = (
     "explique esse repositorio",
     "fluxo principal da aplicação",
     "fluxo principal da aplicacao",
+    "qual e a arquitetura",
+    "arquitetura do projeto",
+    "arquitetura do repositorio",
+)
+
+CAPABILITIES_PHRASES = (
+    "quais opcoes",
+    "o que voce faz",
+    "o que posso perguntar",
+    "como voce pode ajudar",
+    "comandos disponiveis",
+    "funcionalidades disponiveis",
 )
 
 SECURITY_PHRASES = (
@@ -57,6 +70,8 @@ def classify_intent(question: str) -> UserIntent:
         phrase in normalized for phrase in SECURITY_PHRASES
     ):
         return UserIntent.SECURITY_ANALYSIS
+    if any(phrase in normalized for phrase in CAPABILITIES_PHRASES):
+        return UserIntent.CAPABILITIES
     if any(phrase in normalized for phrase in OVERVIEW_PHRASES):
         return UserIntent.PROJECT_OVERVIEW
     return UserIntent.GENERAL

@@ -35,12 +35,15 @@ artifacts/
 # Build e distribuição
 build/
 dist/
+node_modules/
 *.egg-info/
 *.egg
 
 # Editores e sistema operacional
 .vscode/
 .idea/
+.agents/
+.codex/
 *.swp
 *.swo
 .DS_Store

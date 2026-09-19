@@ -1,5 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
+FROM node:22-bookworm-slim AS assets
+
+WORKDIR /build
+COPY package.json package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY assets ./assets
+COPY src/repo_agent_chat/app/ui.py ./src/repo_agent_chat/app/ui.py
+RUN npm run build:css
+
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
@@ -11,6 +20,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
 COPY src ./src
+COPY --from=assets /build/src/repo_agent_chat/app/static/tailwind.css \
+    ./src/repo_agent_chat/app/static/tailwind.css
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 

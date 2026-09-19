@@ -61,3 +61,27 @@ def test_index_repository_exclui_caminhos_do_corpus(tmp_path: Path) -> None:
     indexed_chunks = embeddings.embed_chunks.call_args.args[0]
     assert index.file_count == 1
     assert {chunk.path for chunk in indexed_chunks} == {"app.py"}
+
+
+def test_index_repository_limita_corpus_e_prioriza_raiz(tmp_path: Path) -> None:
+    community = tmp_path / "community_contributions" / "demo"
+    community.mkdir(parents=True)
+    (community / "large.py").write_text("\n".join(["x = 1"] * 20), encoding="utf-8")
+    (tmp_path / "README.md").write_text("visão geral", encoding="utf-8")
+    embeddings = Mock()
+    embeddings.embed_chunks.side_effect = lambda chunks: [
+        EmbeddedChunk(chunk=chunk, vector=(1.0,)) for chunk in chunks
+    ]
+
+    index = index_repository(
+        tmp_path,
+        embeddings,
+        chunk_size=3,
+        overlap=0,
+        max_chunks=2,
+    )
+
+    indexed_chunks = embeddings.embed_chunks.call_args.args[0]
+    assert index.truncated is True
+    assert index.chunk_count == 2
+    assert indexed_chunks[0].path == "README.md"

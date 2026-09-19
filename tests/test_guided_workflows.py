@@ -42,3 +42,25 @@ def test_formata_mermaid_sem_alterar_diagrama() -> None:
     answer = format_mermaid_diagram(result)
 
     assert f"```mermaid\n{diagram}\n```" in answer
+
+
+def test_formata_mermaid_com_prova_da_aresta() -> None:
+    result = json.dumps(
+        {
+            "ok": True,
+            "result": {
+                "diagram": "flowchart LR\n    n0 --> n1",
+                "nodes": 2,
+                "edges": 1,
+                "paths": ["src/app.py", "src/service.py"],
+                "edge_evidence": [
+                    {"source": "src/app.py", "target": "src/service.py", "line": 3}
+                ],
+            },
+        }
+    )
+
+    answer = format_mermaid_diagram(result)
+
+    assert "`src/app.py:1`" in answer
+    assert "`src/app.py` → `src/service.py`: `src/app.py:3`" in answer

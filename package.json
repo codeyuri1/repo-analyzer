@@ -1,0 +1,11 @@
+{
+  "name": "repo-agent-chat-ui",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i assets/tailwind.css -o src/repo_agent_chat/app/static/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.13",
+    "tailwindcss": "^4.1.13"
+  }
+}

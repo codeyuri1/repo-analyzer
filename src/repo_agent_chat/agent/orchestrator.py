@@ -13,21 +13,25 @@ from repo_agent_chat.agent.guardrails import (
     TOOL_NAMES,
     WORD_PATTERN,
 )
+from repo_agent_chat.agent.intents import UserIntent, classify_intent
 from repo_agent_chat.agent.memory import ConversationMemory
 from repo_agent_chat.agent.models import RequestedTool
 from repo_agent_chat.agent.prompts import POST_TOOL_PROMPT, SYSTEM_PROMPT
 from repo_agent_chat.app.config import Settings
+from repo_agent_chat.app.questions import QuestionDefinition, resolve_question
 from repo_agent_chat.evaluation.faithfulness import (
     extract_referenced_symbols,
     symbol_exists,
 )
 from repo_agent_chat.repository.structure import CodeStructure, extract_code_structures
 from repo_agent_chat.tools import TOOL_DEFINITIONS, RepositoryTools
-from repo_agent_chat.tracing import ToolTraceEvent, tool_result_succeeded
+from repo_agent_chat.tracing import (
+    ToolTraceEvent,
+    ToolTraceRecord,
+    tool_result_succeeded,
+)
 from repo_agent_chat.workflows import (
-    UserIntent,
     build_project_overview,
-    classify_intent,
     format_mermaid_diagram,
     format_security_analysis,
 )
@@ -56,6 +60,7 @@ class ToolAgent:
         self._state = AgentTurnState()
         self._turn_tool_event: Callable[[ToolTraceEvent], None] | None = None
         self._turn_token_event: Callable[[str], None] | None = None
+        self._question_definition: QuestionDefinition | None = None
 
     @property
     def last_tool_calls(self) -> list[str]:
@@ -64,6 +69,10 @@ class ToolAgent:
     @last_tool_calls.setter
     def last_tool_calls(self, value: list[str]) -> None:
         self._state.tool_calls = value
+
+    @property
+    def last_tool_trace(self) -> list[ToolTraceRecord]:
+        return self._state.tool_trace
 
     @property
     def last_evidence_paths(self) -> set[str]:
@@ -129,18 +138,22 @@ class ToolAgent:
         question: str,
         on_tool_event: Callable[[ToolTraceEvent], None] | None = None,
         on_token: Callable[[str], None] | None = None,
+        question_id: str | None = None,
     ) -> str:
         """Executa uma pergunta com um observador opcional exclusivo da rodada."""
 
         previous_observer = self._turn_tool_event
         previous_token_observer = self._turn_token_event
+        previous_question_definition = self._question_definition
         self._turn_tool_event = on_tool_event
         self._turn_token_event = on_token
+        self._question_definition = resolve_question(question_id) if question_id else None
         try:
             return self._run_agent(question)
         finally:
             self._turn_tool_event = previous_observer
             self._turn_token_event = previous_token_observer
+            self._question_definition = previous_question_definition
 
     def _run_agent(self, question: str) -> str:
         """Executa tools solicitadas pelo modelo e retorna a resposta final."""
@@ -158,6 +171,10 @@ class ToolAgent:
         pending_reads: dict[str, tuple[int, int]] = {}
         bootstrap_attempted = False
         intent = classify_intent(question)
+        if intent is UserIntent.CAPABILITIES:
+            answer = self._capabilities_answer()
+            self._save_turn(user_message, answer)
+            return answer
         if intent is UserIntent.SECURITY_ANALYSIS:
             return self._run_guided_tool_workflow(
                 user_message,
@@ -185,7 +202,7 @@ class ToolAgent:
             response = self._client.chat.completions.create(
                 model=self._model,
                 messages=working_messages,
-                tools=TOOL_DEFINITIONS,
+                tools=self._available_tool_definitions(),
                 tool_choice="auto",
                 temperature=0,
             )
@@ -618,6 +635,7 @@ class ToolAgent:
     ) -> str:
         """Executa uma tool aplicando tracing e controle de paginação."""
 
+        allowed = self._question_definition is None or call.name in self._question_definition.allowed_tools
         self.last_tool_calls.append(call.name)
         self._emit_trace(
             ToolTraceEvent(
@@ -627,22 +645,53 @@ class ToolAgent:
             )
         )
         started_at = perf_counter()
-        result = self._tools.execute(call.name, call.arguments)
+        if allowed:
+            result = self._tools.execute(call.name, call.arguments)
+        else:
+            result = json.dumps(
+                {"ok": False, "error": f"Tool não permitida para a investigação: {call.name}"},
+                ensure_ascii=False,
+            )
         self._record_listed_paths(call.name, result)
         self._record_evidence_paths(call.name, result)
         self._record_security_evidence(call.name, result)
+        self._record_diagram_evidence(call.name, result)
         self._record_generated_artifact(call.name, result)
         self._track_pending_read(call, result, pending_reads)
+        duration_ms = (perf_counter() - started_at) * 1_000
+        success = tool_result_succeeded(result)
+        self._state.tool_trace.append(
+            ToolTraceRecord(
+                question_id=self._question_definition.id if self._question_definition else None,
+                tool_name=call.name,
+                arguments=_sanitize_tool_arguments(call.arguments),
+                status="ok" if success else "error",
+                duration_ms=duration_ms,
+                result_metadata=_tool_result_metadata(result),
+            )
+        )
         self._emit_trace(
             ToolTraceEvent(
                 phase="completed",
                 tool_name=call.name,
                 arguments=call.arguments,
-                success=tool_result_succeeded(result),
-                duration_ms=(perf_counter() - started_at) * 1_000,
+                success=success,
+                duration_ms=duration_ms,
             )
         )
         return result
+
+    def _available_tool_definitions(self) -> list[dict[str, Any]]:
+        """Expõe somente as tools autorizadas para a ação guiada atual."""
+
+        if self._question_definition is None:
+            return TOOL_DEFINITIONS
+        allowed = set(self._question_definition.allowed_tools)
+        return [
+            definition
+            for definition in TOOL_DEFINITIONS
+            if definition["function"]["name"] in allowed
+        ]
 
     def _record_generated_artifact(self, tool_name: str, result: object) -> None:
         """Guarda artefatos cuja representação final não deve depender da LLM."""
@@ -796,7 +845,25 @@ class ToolAgent:
                 "vou consultar",
                 "vou verificar",
                 "preciso investigar",
+                "estou pronto para ajudar",
+                "faça sua pergunta",
+                "faca sua pergunta",
             )
+        )
+
+    @staticmethod
+    def _capabilities_answer() -> str:
+        """Apresenta ações úteis sem depender do comportamento da LLM."""
+
+        return (
+            "## O que posso analisar\n\n"
+            "- **Visão geral:** objetivo, tecnologias, módulos e como executar.\n"
+            "- **Arquitetura e fluxos:** responsabilidades e caminho de execução.\n"
+            "- **Código específico:** funções, classes, validações e dependências.\n"
+            "- **Segurança:** possíveis achados de análise estática, com limitações.\n"
+            "- **Diagrama:** dependências entre módulos em Mermaid para download.\n\n"
+            "Experimente: `Qual é a arquitetura?`, `Explique o fluxo principal` "
+            "ou `Gere um diagrama Mermaid das dependências`."
         )
 
     def _record_evidence_paths(self, tool_name: str, result: object) -> None:
@@ -855,6 +922,33 @@ class ToolAgent:
             excerpt = f"{path}:{line}: {rule}: {message}"
             if excerpt not in self.last_evidence_excerpts:
                 self.last_evidence_excerpts.append(excerpt)
+
+    def _record_diagram_evidence(self, tool_name: str, result: object) -> None:
+        """Trata os arquivos que originaram nós Mermaid como fontes verificáveis."""
+
+        if tool_name != "generate_mermaid_diagram" or not isinstance(result, str):
+            return
+        try:
+            payload = json.loads(result)
+        except json.JSONDecodeError:
+            return
+        data = payload.get("result") if isinstance(payload, dict) else None
+        paths = data.get("paths") if isinstance(data, dict) else None
+        if isinstance(paths, list):
+            for path in paths:
+                if isinstance(path, str):
+                    self.last_evidence_paths.add(path)
+                    self.last_evidence_ranges.add(f"{path}:1-1")
+        edge_evidence = data.get("edge_evidence") if isinstance(data, dict) else None
+        if not isinstance(edge_evidence, list):
+            return
+        for edge in edge_evidence:
+            if not isinstance(edge, dict):
+                continue
+            path, line = edge.get("source"), edge.get("line")
+            if isinstance(path, str) and isinstance(line, int):
+                self.last_evidence_paths.add(path)
+                self.last_evidence_ranges.add(f"{path}:{line}-{line}")
 
     def _record_evidence_lines(
         self,
@@ -1156,6 +1250,9 @@ class ToolAgent:
             "embedding",
             "ragassistant",
             "busca vetorial",
+            "arquitetura",
+            "dependência",
+            "dependencia",
         )
         return any(term in normalized for term in repository_terms)
 
@@ -1335,3 +1432,50 @@ class ToolAgent:
         """Guarda a conversa final sem duplicar resultados volumosos das tools."""
 
         self._memory.save_turn(user_message, answer)
+
+
+def _sanitize_tool_arguments(arguments: str) -> dict[str, Any]:
+    """Mantém argumentos úteis no trace e mascara chaves que possam conter segredo."""
+
+    try:
+        parsed = json.loads(arguments)
+    except json.JSONDecodeError:
+        return {"invalid_json": True}
+    if not isinstance(parsed, dict):
+        return {"invalid_arguments": True}
+
+    sensitive = re.compile(r"(?:secret|token|password|passwd|api[_-]?key)", re.IGNORECASE)
+    return {
+        str(key): "[redacted]" if sensitive.search(str(key)) else value
+        for key, value in parsed.items()
+        if isinstance(value, (str, int, float, bool, type(None)))
+    }
+
+
+def _tool_result_metadata(result: object) -> dict[str, Any]:
+    """Resume resultados para auditoria, sem armazenar conteúdo de código."""
+
+    if not isinstance(result, str):
+        return {"parseable": False}
+    try:
+        payload = json.loads(result)
+    except json.JSONDecodeError:
+        return {"parseable": False}
+    if not isinstance(payload, dict):
+        return {"parseable": False}
+    data = payload.get("result")
+    metadata: dict[str, Any] = {"ok": payload.get("ok") is True}
+    if isinstance(data, list):
+        metadata["count"] = len(data)
+        metadata["paths"] = [item.get("path") for item in data if isinstance(item, dict) and isinstance(item.get("path"), str)][:20]
+    elif isinstance(data, dict):
+        for key in ("path", "count", "nodes", "edges", "truncated", "prefix"):
+            if key in data and isinstance(data[key], (str, int, float, bool, type(None))):
+                metadata[key] = data[key]
+        if isinstance(data.get("paths"), list):
+            metadata["paths"] = [path for path in data["paths"] if isinstance(path, str)][:20]
+    elif isinstance(data, list):
+        metadata["count"] = len(data)
+    if payload.get("ok") is False:
+        metadata["error"] = "tool_error"
+    return metadata

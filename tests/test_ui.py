@@ -2,12 +2,18 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import gradio as gr
+import pytest
 
 from repo_agent_chat.app.ui import (
+    QUESTION_CATALOG,
+    STANDARD_QUESTION_LABELS,
+    STANDARD_QUESTIONS,
     GradioChatAdapter,
     WebRepositoryController,
+    _format_tool_event,
     create_app,
     create_repository_app,
+    resolve_question,
     save_mermaid_artifact,
 )
 from repo_agent_chat.tracing import ToolTraceEvent
@@ -39,7 +45,7 @@ def test_gradio_adapter_carrega_historico_antes_da_pergunta() -> None:
 
     updates = list(adapter("Nova pergunta", history))
 
-    assert "semantic_search" in updates[0]
+    assert "Buscando trechos relevantes" in updates[0]
     assert "Gerando resposta" in updates[1]
     assert updates[-1] == "Resposta fundamentada."
     assert agent.method_calls[0] == call.replace_history(history)
@@ -137,4 +143,41 @@ def test_create_repository_app_constroi_tela_inicial(tmp_path) -> None:
     app, controller = create_repository_app(Mock(), str(tmp_path))
 
     assert isinstance(app, gr.Blocks)
+    config = str(app.get_config_file())
+    assert "Sobre" in config
+    assert "Perguntas disponíveis" in config
+    assert all(label in config for label in STANDARD_QUESTION_LABELS)
     controller.close()
+
+
+def test_menu_de_perguntas_padrao_tem_rotulos_unicos() -> None:
+    assert len(STANDARD_QUESTIONS) == len(STANDARD_QUESTION_LABELS) == 8
+    assert len(set(STANDARD_QUESTIONS)) == len(STANDARD_QUESTIONS)
+    assert len(set(STANDARD_QUESTION_LABELS)) == len(STANDARD_QUESTION_LABELS)
+
+
+def test_catalogo_publico_tem_ids_unicos_e_prompts_resolvidos() -> None:
+    ids = [question.id for question in QUESTION_CATALOG]
+
+    assert len(ids) == len(set(ids))
+    assert resolve_question("architecture").prompt == "Qual é a arquitetura deste projeto?"
+
+
+def test_catalogo_rejeita_id_arbitrario() -> None:
+    with pytest.raises(ValueError, match="inválida"):
+        resolve_question("qualquer-coisa")
+
+
+def test_progresso_da_tool_usa_descricao_amigavel() -> None:
+    event = ToolTraceEvent(
+        phase="completed",
+        tool_name="semantic_search",
+        arguments="{}",
+        success=True,
+        duration_ms=42,
+    )
+
+    progress = _format_tool_event(event)
+
+    assert "Buscando trechos relevantes" in progress
+    assert "semantic_search" not in progress

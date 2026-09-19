@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repo_agent_chat.agent import ToolAgent
+from repo_agent_chat.evaluation.citations import CitationEvaluator
 from repo_agent_chat.evaluation.faithfulness import (
     extract_referenced_symbols,
     symbol_exists,
@@ -215,6 +216,7 @@ def evaluate_answer(
     repository_root: Path,
     evidence_paths: set[str] | None = None,
     evidence_excerpts: list[str] | None = None,
+    evidence_ranges: set[str] | None = None,
 ) -> EvalResult:
     """Aplica verificações determinísticas à resposta de um agente."""
 
@@ -246,15 +248,18 @@ def evaluate_answer(
         }
     )
     citations = extract_citations(answer)
+    normalized_evidence = evidence_paths or set()
     checks["citations:count"] = len(citations) >= case.minimum_citations
     if case.maximum_citations is not None:
         checks["citations:not_excessive"] = len(citations) <= case.maximum_citations
+    citation_evaluation = CitationEvaluator().evaluate(
+        citations, repository_root, evidence_ranges, normalized_evidence
+    )
     checks["citations:valid"] = (
-        all(citation_is_valid(citation, repository_root) for citation in citations)
+        all(check.exists and check.lines_exist and check.inside_repository for check in citation_evaluation.citations)
         if citations
         else case.minimum_citations == 0
     )
-    normalized_evidence = evidence_paths or set()
     checks.update(
         {
             f"evidence:{path}": path in normalized_evidence
@@ -262,7 +267,7 @@ def evaluate_answer(
         }
     )
     checks["citations:grounded"] = (
-        all(citation.path in normalized_evidence for citation in citations)
+        citation_evaluation.passed
         if citations
         else case.minimum_citations == 0
     )
@@ -318,6 +323,9 @@ def run_evaluation_suite(
                 repository_root,
                 agent.last_evidence_paths,
                 agent.last_evidence_excerpts,
+                agent.last_evidence_ranges
+                if isinstance(agent.last_evidence_ranges, set)
+                else None,
             )
         )
     return results
@@ -337,18 +345,8 @@ def extract_citations(answer: str) -> list[Citation]:
 def citation_is_valid(citation: Citation, repository_root: Path) -> bool:
     """Confirma que caminho e linhas citados existem dentro do repositório."""
 
-    root = repository_root.resolve()
-    cited_file = (root / citation.path).resolve()
-    if not cited_file.is_relative_to(root) or not cited_file.is_file():
-        return False
-    if citation.start_line < 1 or citation.end_line < citation.start_line:
-        return False
-
-    try:
-        total_lines = len(cited_file.read_text(encoding="utf-8").splitlines())
-    except (OSError, UnicodeDecodeError):
-        return False
-    return citation.end_line <= total_lines
+    check = CitationEvaluator().evaluate([citation], repository_root).citations[0]
+    return check.exists and check.lines_exist and check.inside_repository
 
 
 def print_evaluation_report(results: list[EvalResult]) -> None:

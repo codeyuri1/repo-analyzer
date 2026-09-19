@@ -72,6 +72,7 @@ def build_tool_agent(
         root,
         embeddings,
         excluded_paths=excluded_paths,
+        max_chunks=settings.max_index_chunks,
     )
     tools = RepositoryTools(root, repository_index.retriever)
     agent = ToolAgent(settings, tools, on_tool_event=print_tool_trace)

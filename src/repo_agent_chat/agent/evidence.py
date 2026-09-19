@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from repo_agent_chat.tracing import ToolTraceRecord
+
 
 @dataclass(slots=True)
 class AgentTurnState:
@@ -14,3 +16,4 @@ class AgentTurnState:
     workflow_evidence_paths: set[str] = field(default_factory=set)
     workflow_documents: dict[str, str] = field(default_factory=dict)
     mermaid_diagram: str | None = None
+    tool_trace: list[ToolTraceRecord] = field(default_factory=list)

@@ -101,6 +101,20 @@ def test_visao_geral_inicia_workflow_deterministico() -> None:
     client.chat.completions.create.assert_not_called()
 
 
+def test_pergunta_sobre_opcoes_retorna_capacidades_sem_chamar_modelo() -> None:
+    client = Mock()
+    tools = Mock()
+    agent = ToolAgent(Settings(_env_file=None), tools, client=client)
+
+    answer = agent.ask("Quais opções estão disponíveis?")
+
+    assert "Visão geral" in answer
+    assert "Arquitetura e fluxos" in answer
+    assert "Segurança" in answer
+    client.chat.completions.create.assert_not_called()
+    tools.execute.assert_not_called()
+
+
 def test_pedido_natural_de_seguranca_executa_tool_deterministicamente() -> None:
     client = Mock()
     tools = Mock()

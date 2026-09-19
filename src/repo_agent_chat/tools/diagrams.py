@@ -21,13 +21,13 @@ def generate_dependency_diagram(
     selected = code_files[:max_nodes]
     node_ids = {source.path: f"n{index}" for index, source in enumerate(selected)}
     aliases = _build_aliases(selected)
-    edges: set[tuple[str, str]] = set()
+    edge_evidence: dict[tuple[str, str], int] = {}
 
     for source in selected:
-        for imported in _extract_imports(source.content):
+        for imported, line in _extract_imports(source.content):
             target = _resolve_import(imported, aliases)
             if target and target != source.path:
-                edges.add((source.path, target))
+                edge_evidence.setdefault((source.path, target), line)
 
     lines = ["flowchart LR"]
     lines.extend(
@@ -35,14 +35,18 @@ def generate_dependency_diagram(
     )
     lines.extend(
         f"    {node_ids[source]} --> {node_ids[target]}"
-        for source, target in sorted(edges)
+        for source, target in sorted(edge_evidence)
     )
     return {
         "diagram": "\n".join(lines),
         "nodes": len(selected),
-        "edges": len(edges),
+        "edges": len(edge_evidence),
         "truncated": len(code_files) > len(selected),
         "paths": list(node_ids),
+        "edge_evidence": [
+            {"source": source, "target": target, "line": line}
+            for (source, target), line in sorted(edge_evidence.items())
+        ],
     }
 
 
@@ -68,12 +72,14 @@ def _build_aliases(source_files: list[SourceFile]) -> dict[str, str]:
     return aliases
 
 
-def _extract_imports(content: str) -> set[str]:
-    return {
-        imported
-        for pattern in IMPORT_PATTERNS
-        for imported in pattern.findall(content)
-    }
+def _extract_imports(content: str) -> set[tuple[str, int]]:
+    """Extrai módulo e linha do import para sustentar cada aresta do grafo."""
+
+    imports: set[tuple[str, int]] = set()
+    for pattern in IMPORT_PATTERNS:
+        for match in pattern.finditer(content):
+            imports.add((match.group(1), content.count("\n", 0, match.start()) + 1))
+    return imports
 
 
 def _resolve_import(imported: str, aliases: dict[str, str]) -> str | None:

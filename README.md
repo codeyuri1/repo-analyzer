@@ -71,6 +71,18 @@ uv run repo-agent-chat --web .
 
 Abra `http://127.0.0.1:7860` no navegador.
 
+## Demonstração
+
+O fluxo real de carregamento de um fixture e investigação de arquitetura está
+gravado em [`assets/demo/repo-agent-chat-demo.webm`](assets/demo/repo-agent-chat-demo.webm).
+
+Para regravar localmente, inicie a interface na porta `7861` apontando para
+`tests/fixtures/simple_api` e execute:
+
+```bash
+uv run --with playwright python scripts/record_demo.py
+```
+
 Na tela inicial, informe ou confirme o caminho/URL e clique em **Carregar
 repositório**. Somente nesse momento o clone temporário e a indexação em memória
 são iniciados. Carregar outra fonte limpa a conversa e descarta a sessão
@@ -102,6 +114,72 @@ APP_PORT=8080 docker compose up --build
 Com OpenAI, configure `AI_PROVIDER=openai` e `OPENAI_API_KEY` no `.env`. O
 container roda sem root, com filesystem somente leitura, capabilities removidas
 e `/tmp` efêmero para clones, índice da sessão e diagramas.
+
+Ao usar a OpenAI, trechos recuperados do repositório e as perguntas da conversa
+são enviados à API configurada. Não use esse modo com código confidencial sem
+antes avaliar as políticas e os controles de dados aplicáveis. Com Ollama, o
+processamento permanece na infraestrutura local configurada pelo usuário.
+
+### Ubuntu no WSL 2
+
+Com Docker Desktop no Windows, habilite **Settings > Resources > WSL
+Integration**, ative a distribuição Ubuntu utilizada e selecione **Apply &
+restart**. Em um novo terminal do Ubuntu, confirme a integração:
+
+```bash
+docker version
+docker compose version
+```
+
+Mantenha o projeto no filesystem Linux (por exemplo,
+`~/projetos/repo-agent-chat`) em vez de `/mnt/c/...`; isso evita problemas de
+permissão e melhora o desempenho dos bind mounts. Então execute normalmente:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+O Compose publica a interface somente em `127.0.0.1` por padrão e adiciona o
+gateway `host.docker.internal`, que permite ao container acessar o Ollama no
+host. Se o Ollama estiver no Windows, confirme que ele aceita conexões vindas
+do Docker/WSL; se necessário, configure no Windows `OLLAMA_HOST=0.0.0.0:11434`
+e reinicie o Ollama. Essa configuração escuta em todas as interfaces: mantenha
+a porta 11434 bloqueada para redes não confiáveis pelo Firewall do Windows. A
+URL usada pelo container pode ser sobrescrita no `.env`:
+
+```dotenv
+CONTAINER_OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
+```
+
+Para disponibilizar a interface na rede local, faça isso explicitamente:
+
+```dotenv
+APP_HOST=0.0.0.0
+```
+
+O `bubblewrap` é um requisito do sandbox do Codex executado no Ubuntu/WSL e
+não deve ser instalado no container desta aplicação. Instale-o na distribuição:
+
+```bash
+sudo apt update
+sudo apt install bubblewrap
+```
+
+## Segurança e publicação
+
+- Nunca versione o `.env`; use apenas o `.env.example` com valores fictícios.
+- Revise `git diff --cached` antes de cada push para evitar credenciais e dados
+  locais adicionados por engano.
+- Repositórios fornecidos para análise podem conter código não confiável. A
+  aplicação somente lê os arquivos e não executa o código analisado.
+- Ao publicar a interface na rede com `APP_HOST=0.0.0.0`, use firewall ou proxy
+  autenticado; a interface não implementa autenticação própria.
+
+Para relatar uma vulnerabilidade, consulte [`SECURITY.md`](SECURITY.md).
+
+Pull requests executam automaticamente lint, testes, build do pacote e um teste
+de inicialização do Docker Compose com health check.
 
 ## Tools disponíveis
 
@@ -137,11 +215,22 @@ do domínio do repositório. Perguntas fora desse escopo são redirecionadas.
 ```bash
 uv run pytest
 uv run ruff check .
+# Requer provider configurado; não é executado pelo CI básico:
 uv run repo-agent-chat --eval .
 ```
 
-Os testes verificam componentes determinísticos. Os evals executam conversas
-reais com a LLM e avaliam uso de tools, groundedness, citações e formato.
+O CI básico executa `uv run pytest` e `uv run ruff check .`: são testes unitários,
+de integração e evals determinísticos, incluindo roteamento de tools, fontes,
+citações, símbolos e Mermaid. `--eval` é a camada LLM opcional e deve executar
+apenas quando um provider estiver configurado; o judge recebe pergunta, resposta,
+evidências, fontes e trace, nunca somente a resposta.
+
+Para uma suíte de judge integrada ao pytest, reserve o marcador `llm`:
+
+```bash
+uv run pytest -m "not llm" -q  # CI básico
+uv run pytest -m llm -q        # provider configurado
+```
 
 Uma descrição das responsabilidades, dependências e do fluxo interno está em
 [`docs/architecture.md`](docs/architecture.md).

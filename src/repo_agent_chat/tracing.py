@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,6 +12,18 @@ class ToolTraceEvent:
     arguments: str
     success: bool | None = None
     duration_ms: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ToolTraceRecord:
+    """Registro de auditoria de uma execução, sem conteúdo ou segredos da tool."""
+
+    question_id: str | None
+    tool_name: str
+    arguments: dict[str, Any]
+    status: str
+    duration_ms: float
+    result_metadata: dict[str, Any]
 
 
 def print_tool_trace(event: ToolTraceEvent) -> None:

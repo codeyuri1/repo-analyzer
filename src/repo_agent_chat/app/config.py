@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4.1-mini"
     openai_embedding_model: str = "text-embedding-3-small"
     embedding_batch_size: int = Field(default=32, ge=1, le=256)
+    max_index_chunks: int = Field(default=1500, ge=100, le=10_000)
     retrieval_top_k: int = Field(default=5, ge=1, le=20)
     max_tool_rounds: int = Field(default=6, ge=1, le=20)
     max_history_turns: int = Field(default=6, ge=1, le=50)
