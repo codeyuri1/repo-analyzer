@@ -71,18 +71,6 @@ uv run repo-agent-chat --web .
 
 Abra `http://127.0.0.1:7860` no navegador.
 
-## Demonstração
-
-O fluxo real de carregamento de um fixture e investigação de arquitetura está
-gravado em [`assets/demo/repo-agent-chat-demo.webm`](assets/demo/repo-agent-chat-demo.webm).
-
-Para regravar localmente, inicie a interface na porta `7861` apontando para
-`tests/fixtures/simple_api` e execute:
-
-```bash
-uv run --with playwright python scripts/record_demo.py
-```
-
 Na tela inicial, informe ou confirme o caminho/URL e clique em **Carregar
 repositório**. Somente nesse momento o clone temporário e a indexação em memória
 são iniciados. Carregar outra fonte limpa a conversa e descarta a sessão
@@ -217,8 +205,8 @@ Exemplos de perguntas:
 - `Gere um diagrama Mermaid das dependências entre os módulos.`
 
 O chat não usa uma lista fechada de perguntas. Os exemplos da interface funcionam
-como atalhos para a demonstração, enquanto o agente aceita qualquer pergunta dentro
-do domínio do repositório. Perguntas fora desse escopo são redirecionadas.
+como atalhos, enquanto o agente aceita qualquer pergunta dentro do domínio do
+repositório. Perguntas fora desse escopo são redirecionadas.
 
 ## Qualidade
 
@@ -246,13 +234,4 @@ uv run pytest -m llm -q        # provider configurado
 
 Uma descrição das responsabilidades, dependências e do fluxo interno está em
 [`docs/architecture.md`](docs/architecture.md).
-
-## Checklist de demonstração
-
-1. Inicie com `uv run repo-agent-chat --web`.
-2. Carregue um caminho local ou URL pública do GitHub.
-3. Peça `Explique o projeto.` e confira as citações.
-4. Execute a análise de possíveis vulnerabilidades.
-5. Gere o Mermaid e faça download do `.mmd`.
-6. Troque de repositório e confirme que o histórico foi limpo.
 7. Encerre com `Ctrl+C`; clones, índice e artefatos temporários serão removidos.
