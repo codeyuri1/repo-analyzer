@@ -8,6 +8,7 @@ from repo_agent_chat.evaluation.faithfulness import (
     extract_referenced_symbols,
     symbol_exists,
 )
+from repo_agent_chat.repository import discover_source_files
 
 CITATION_PATTERN = re.compile(
     r"(?P<path>[\w./-]+\.[a-zA-Z0-9]+):(?P<start>\d+)(?:-(?P<end>\d+))?"
@@ -193,20 +194,64 @@ MERMAID_CASE = EvalCase(
     require_mermaid_block=True,
 )
 
-DEFAULT_EVAL_CASES = (
-    REPOSITORY_SAFETY_CASE,
-    CHUNKING_CASE,
-    VECTOR_SEARCH_CASE,
-    RAG_FLOW_CASE,
-    VULNERABILITY_CASE,
-    MERMAID_CASE,
-)
-EVAL_EXCLUDED_PATHS = frozenset(
-    {
-        "src/repo_agent_chat/evaluation/cases.py",
-        "tests/test_evals.py",
-    }
-)
+# Kept for callers that import the symbol.  Fixed cases above document examples
+# for this repository, but must never be used to grade an arbitrary repository.
+DEFAULT_EVAL_CASES: tuple[EvalCase, ...] = ()
+EVAL_EXCLUDED_PATHS = frozenset()
+
+
+def default_evaluation_cases(repository_root: Path) -> tuple[EvalCase, ...]:
+    """Create repository-neutral evals from files that actually exist.
+
+    The former suite asserted implementation names from this project, which made
+    ``--eval`` misleading for every other repository.  These checks verify the
+    agent's investigation behaviour instead of a particular architecture.
+    """
+
+    paths = [
+        path.relative_to(repository_root).as_posix()
+        for path in discover_source_files(repository_root)
+    ]
+    if not paths:
+        return ()
+    target = next(
+        (path for path in paths if Path(path).suffix.lower() not in {".md", ".json"}),
+        paths[0],
+    )
+    return (
+        EvalCase(
+            name="grounded_file_explanation",
+            question=(
+                f"Explique a responsabilidade observável de `{target}`. "
+                "Diferencie fatos do código de inferências."
+            ),
+            required_tools=("read_file",),
+            required_evidence_paths=(target,),
+            minimum_citations=1,
+            maximum_citations=5,
+            maximum_citation_span=20,
+            forbid_code_blocks=True,
+            require_reference_only_citations=True,
+            require_faithful_symbols=True,
+        ),
+        EvalCase(
+            name="repository_vulnerability_analysis",
+            question=(
+                "Faça uma análise estática de possíveis vulnerabilidades no "
+                "repositório inteiro e explique as limitações dos achados."
+            ),
+            required_concepts=VULNERABILITY_CASE.required_concepts,
+            forbidden_terms=VULNERABILITY_CASE.forbidden_terms,
+            required_tools=("analyze_vulnerabilities",),
+        ),
+        EvalCase(
+            name="repository_dependency_diagram",
+            question="Gere um diagrama Mermaid das dependências entre os arquivos do repositório.",
+            required_terms=("flowchart",),
+            required_tools=("generate_mermaid_diagram",),
+            require_mermaid_block=True,
+        ),
+    )
 
 
 def evaluate_answer(
@@ -307,12 +352,13 @@ def evaluate_answer(
 def run_evaluation_suite(
     agent: ToolAgent,
     repository_root: Path,
-    cases: tuple[EvalCase, ...] = DEFAULT_EVAL_CASES,
+    cases: tuple[EvalCase, ...] | None = None,
 ) -> list[EvalResult]:
     """Executa casos reais contra o agente local."""
 
     results = []
-    for case in cases:
+    selected_cases = cases if cases is not None else default_evaluation_cases(repository_root)
+    for case in selected_cases:
         agent.reset_conversation()
         answer = agent.ask(case.question)
         results.append(

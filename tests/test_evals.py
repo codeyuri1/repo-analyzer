@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 from repo_agent_chat.evaluation.cases import (
     EvalCase,
+    default_evaluation_cases,
     evaluate_answer,
     run_evaluation_suite,
 )
@@ -265,3 +266,13 @@ def test_run_evaluation_suite_usa_resposta_e_tracing_do_agent(
     assert results[0].passed is True
     agent.reset_conversation.assert_called_once_with()
     agent.ask.assert_called_once_with("Onde?")
+
+
+def test_evals_padrao_sao_gerados_a_partir_do_repositorio_avaliado(tmp_path: Path) -> None:
+    (tmp_path / "server.go").write_text("package main\nfunc main() {}", encoding="utf-8")
+
+    cases = default_evaluation_cases(tmp_path)
+
+    assert cases[0].required_evidence_paths == ("server.go",)
+    assert "server.go" in cases[0].question
+    assert all("repo_agent_chat" not in case.question for case in cases)

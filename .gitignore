@@ -43,7 +43,6 @@ node_modules/
 .vscode/
 .idea/
 .agents/
-.codex/
 *.swp
 *.swo
 .DS_Store

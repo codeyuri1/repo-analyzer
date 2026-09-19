@@ -2,7 +2,6 @@
 .gitignore
 .github
 .agents
-.codex
 .venv
 .env
 .env.*

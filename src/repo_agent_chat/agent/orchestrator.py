@@ -17,6 +17,7 @@ from repo_agent_chat.agent.intents import UserIntent, classify_intent
 from repo_agent_chat.agent.memory import ConversationMemory
 from repo_agent_chat.agent.models import RequestedTool
 from repo_agent_chat.agent.prompts import POST_TOOL_PROMPT, SYSTEM_PROMPT
+from repo_agent_chat.agent.untrusted import sanitize_tool_result_for_model
 from repo_agent_chat.app.config import Settings
 from repo_agent_chat.app.questions import QuestionDefinition, resolve_question
 from repo_agent_chat.evaluation.faithfulness import (
@@ -179,14 +180,14 @@ class ToolAgent:
             return self._run_guided_tool_workflow(
                 user_message,
                 "analyze_vulnerabilities",
-                {"prefix": "src/" if "src/" in question else "", "max_findings": 50},
+                {"prefix": "", "max_findings": 50},
                 format_security_analysis,
             )
         if intent is UserIntent.MERMAID_DIAGRAM:
             return self._run_guided_tool_workflow(
                 user_message,
                 "generate_mermaid_diagram",
-                {"prefix": "src/" if "src/" in question else "", "max_nodes": 40},
+                {"prefix": "", "max_nodes": 40},
                 format_mermaid_diagram,
             )
         if intent is UserIntent.PROJECT_OVERVIEW:
@@ -652,6 +653,7 @@ class ToolAgent:
                 {"ok": False, "error": f"Tool não permitida para a investigação: {call.name}"},
                 ensure_ascii=False,
             )
+        result = sanitize_tool_result_for_model(result)
         self._record_listed_paths(call.name, result)
         self._record_evidence_paths(call.name, result)
         self._record_security_evidence(call.name, result)

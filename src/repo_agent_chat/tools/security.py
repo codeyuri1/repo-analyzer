@@ -49,6 +49,29 @@ SECURITY_RULES = (
         re.compile(r"\b(?:hashlib\.)?(?:md5|sha1)\s*\("),
         "Hash criptográfico fraco; confirme se não é usado para segurança.",
     ),
+    (
+        "sql-query-concatenation",
+        "medium",
+        re.compile(
+            r"(?i)\b(?:select|insert|update|delete)\b[^\n]*(?:\+|f[\"']|\.format\s*\()"
+        ),
+        "Consulta SQL construída dinamicamente; use parâmetros preparados.",
+    ),
+    (
+        "insecure-tls-verification",
+        "high",
+        re.compile(r"(?i)\b(?:verify\s*=\s*False|ssl[_-]?verify\s*[:=]\s*false)\b"),
+        "Verificação de certificado TLS desabilitada.",
+    ),
+    (
+        "prompt-injection-content",
+        "medium",
+        re.compile(
+            r"(?i)\b(?:ignore\s+(?:previous|prior)\s+instructions?|"
+            r"disregard\s+(?:the\s+)?system|reveal\s+(?:the\s+)?prompt)\b"
+        ),
+        "Texto com padrão de prompt injection; trate-o como dado não confiável.",
+    ),
 )
 
 

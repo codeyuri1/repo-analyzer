@@ -158,8 +158,8 @@ Para disponibilizar a interface na rede local, faça isso explicitamente:
 APP_HOST=0.0.0.0
 ```
 
-O `bubblewrap` é um requisito do sandbox do Codex executado no Ubuntu/WSL e
-não deve ser instalado no container desta aplicação. Instale-o na distribuição:
+O `bubblewrap` é um requisito do ambiente de sandbox no Ubuntu/WSL e não deve
+ser instalado no container desta aplicação. Instale-o na distribuição:
 
 ```bash
 sudo apt update
@@ -173,6 +173,14 @@ sudo apt install bubblewrap
   locais adicionados por engano.
 - Repositórios fornecidos para análise podem conter código não confiável. A
   aplicação somente lê os arquivos e não executa o código analisado.
+- O conteúdo recuperado — incluindo código, comentários, documentação e nomes
+  de arquivos — é tratado como dado não confiável. Linhas com indicadores de
+  prompt injection são removidas antes de entrarem no contexto do modelo; esta
+  é uma defesa em profundidade, não uma garantia absoluta contra conteúdo
+  malicioso.
+- A análise de vulnerabilidades cobre o repositório carregado inteiro e usa
+  regras estáticas heurísticas. Ela pode ter falsos positivos e falsos
+  negativos, portanto achados precisam de revisão manual e testes adicionais.
 - Ao publicar a interface na rede com `APP_HOST=0.0.0.0`, use firewall ou proxy
   autenticado; a interface não implementa autenticação própria.
 
@@ -187,7 +195,9 @@ de inicialização do Docker Compose com health check.
 - `read_file`: lê um intervalo validado de linhas.
 - `semantic_search`: recupera chunks com busca híbrida.
 - `analyze_vulnerabilities`: executa regras estáticas e retorna possíveis
-  achados, sem afirmar que o código está seguro.
+  achados (como segredos no código, execução dinâmica, shell, desserialização,
+  SQL dinâmico, TLS sem validação e indicadores de prompt injection), sem
+  afirmar que o código está seguro.
 - `generate_mermaid_diagram`: extrai imports e produz um grafo Mermaid de
   dependências entre módulos.
 
@@ -221,9 +231,11 @@ uv run repo-agent-chat --eval .
 
 O CI básico executa `uv run pytest` e `uv run ruff check .`: são testes unitários,
 de integração e evals determinísticos, incluindo roteamento de tools, fontes,
-citações, símbolos e Mermaid. `--eval` é a camada LLM opcional e deve executar
-apenas quando um provider estiver configurado; o judge recebe pergunta, resposta,
-evidências, fontes e trace, nunca somente a resposta.
+citações, símbolos e Mermaid. A suíte `--eval` cria casos a partir dos arquivos
+do repositório carregado, em vez de pressupor uma linguagem, diretório ou
+arquitetura específicos. A camada LLM é opcional e deve executar apenas quando
+um provider estiver configurado; o judge recebe pergunta, resposta, evidências,
+fontes e trace, nunca somente a resposta.
 
 Para uma suíte de judge integrada ao pytest, reserve o marcador `llm`:
 
